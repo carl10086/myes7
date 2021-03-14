@@ -151,22 +151,22 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
 
     @Override
     protected void doExecute(Task task, BulkRequest bulkRequest, ActionListener<BulkResponse> listener) {
-        final long startTime = relativeTime();
-        final AtomicArray<BulkItemResponse> responses = new AtomicArray<>(bulkRequest.requests.size());
+        final long startTime = relativeTime(); // 当前时间
+        final AtomicArray<BulkItemResponse> responses = new AtomicArray<>(bulkRequest.requests.size()); // 提前构造 resp 的原子性数组, AtomicArray 是 Es 自己实现的数据结构类
 
         boolean hasIndexRequestsWithPipelines = false;
-        final MetaData metaData = clusterService.state().getMetaData();
-        ImmutableOpenMap<String, IndexMetaData> indicesMetaData = metaData.indices();
+        final MetaData metaData = clusterService.state().getMetaData(); // 获取集群的 元信息 metadata
+        ImmutableOpenMap<String, IndexMetaData> indicesMetaData = metaData.indices(); // 获取所有索引
         for (DocWriteRequest<?> actionRequest : bulkRequest.requests) {
-            IndexRequest indexRequest = getIndexWriteRequest(actionRequest);
+            IndexRequest indexRequest = getIndexWriteRequest(actionRequest);  // 如果是一个 Index 请求
             if (indexRequest != null) {
                 // get pipeline from request
-                String pipeline = indexRequest.getPipeline();
-                if (pipeline == null) {
+                String pipeline = indexRequest.getPipeline(); // 获取 pipeline, 就是 数据预处理的一系列管道 .
+                if (pipeline == null) { // 没有管道
                     // start to look for default pipeline via settings found in the index meta data
-                    IndexMetaData indexMetaData = indicesMetaData.get(actionRequest.index());
+                    IndexMetaData indexMetaData = indicesMetaData.get(actionRequest.index()); // 获取对应  index 的元数据信息
                     // check the alias for the index request (this is how normal index requests are modeled)
-                    if (indexMetaData == null && indexRequest.index() != null) {
+                    if (indexMetaData == null && indexRequest.index() != null) {  // 判断请求中带的 index 是不是 alias , alias 可能要转化为真正的 index
                         AliasOrIndex indexOrAlias = metaData.getAliasAndIndexLookup().get(indexRequest.index());
                         if (indexOrAlias != null && indexOrAlias.isAlias()) {
                             AliasOrIndex.Alias alias = (AliasOrIndex.Alias) indexOrAlias;
@@ -181,9 +181,9 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                             indexMetaData = alias.getWriteIndex();
                         }
                     }
-                    if (indexMetaData != null) {
+                    if (indexMetaData != null) { // req 中的 index 就是真正的 index
                         // Find the default pipeline if one is defined from and existing index.
-                        String defaultPipeline = IndexSettings.DEFAULT_PIPELINE.get(indexMetaData.getSettings());
+                        String defaultPipeline = IndexSettings.DEFAULT_PIPELINE.get(indexMetaData.getSettings()); // 默认的 pipeline，没有一般就是 _none
                         indexRequest.setPipeline(defaultPipeline);
                         if (IngestService.NOOP_PIPELINE_NAME.equals(defaultPipeline) == false) {
                             hasIndexRequestsWithPipelines = true;
@@ -212,7 +212,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
             }
         }
 
-        if (hasIndexRequestsWithPipelines) {
+        if (hasIndexRequestsWithPipelines) { // 如果没有 pipeline
             // this method (doExecute) will be called again, but with the bulk requests updated from the ingest node processing but
             // also with IngestService.NOOP_PIPELINE_NAME on each request. This ensures that this on the second time through this method,
             // this path is never taken.
@@ -230,7 +230,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
 
         if (needToCheck()) {
             // Attempt to create all the indices that we're going to need during the bulk before we start.
-            // Step 1: collect all the indices in the request
+            // Step 1: collect all the indices in the request, 也就是第一步要获取所有的 index
             final Set<String> indices = bulkRequest.requests.stream()
                     // delete requests should not attempt to create the index (if the index does not
                     // exists), unless an external versioning is used
@@ -240,7 +240,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                 .map(DocWriteRequest::index)
                 .collect(Collectors.toSet());
             /* Step 2: filter that to indices that don't exist and we can create. At the same time build a map of indices we can't create
-             * that we'll use when we try to run the requests. */
+             * that we'll use when we try to run the requests. 第二步获取要自动创建的 index*/
             final Map<String, IndexNotFoundException> indicesThatCannotBeCreated = new HashMap<>();
             Set<String> autoCreateIndices = new HashSet<>();
             ClusterState state = clusterService.state();
@@ -257,7 +257,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                 }
             }
             // Step 3: create all the indices that are missing, if there are any missing. start the bulk after all the creates come back.
-            if (autoCreateIndices.isEmpty()) {
+            if (autoCreateIndices.isEmpty()) { // 没有要自动创建的 index, 直接开始流程
                 executeBulk(task, bulkRequest, startTime, listener, responses, indicesThatCannotBeCreated);
             } else {
                 final AtomicInteger counter = new AtomicInteger(autoCreateIndices.size());
@@ -358,20 +358,20 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
 
         @Override
         protected void doRun() throws Exception {
-            final ClusterState clusterState = observer.setAndGetObservedState();
-            if (handleBlockExceptions(clusterState)) {
+            final ClusterState clusterState = observer.setAndGetObservedState(); // 设置集群状态
+            if (handleBlockExceptions(clusterState)) { // 判断集群是否处于 block 状态, 是的话直接返回、别增加压力了
                 return;
             }
             final ConcreteIndices concreteIndices = new ConcreteIndices(clusterState, indexNameExpressionResolver);
-            MetaData metaData = clusterState.metaData();
+            MetaData metaData = clusterState.metaData(); // 集群状态元数据信息
             for (int i = 0; i < bulkRequest.requests.size(); i++) {
-                DocWriteRequest<?> docWriteRequest = bulkRequest.requests.get(i);
+                DocWriteRequest<?> docWriteRequest = bulkRequest.requests.get(i); // 获取具体的请求
                 //the request can only be null because we set it to null in the previous step, so it gets ignored
                 if (docWriteRequest == null) {
                     continue;
                 }
                 if (addFailureIfIndexIsUnavailable(docWriteRequest, i, concreteIndices, metaData)) {
-                    continue;
+                    continue; // 再次校验集群状态
                 }
                 Index concreteIndex = concreteIndices.resolveIfAbsent(docWriteRequest);
                 try {
@@ -382,8 +382,8 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                             final IndexMetaData indexMetaData = metaData.index(concreteIndex);
                             MappingMetaData mappingMd = indexMetaData.mappingOrDefault();
                             Version indexCreated = indexMetaData.getCreationVersion();
-                            indexRequest.resolveRouting(metaData);
-                            indexRequest.process(indexCreated, mappingMd, concreteIndex.getName());
+                            indexRequest.resolveRouting(metaData); // 处理 routing 信息
+                            indexRequest.process(indexCreated, mappingMd, concreteIndex.getName());// ? 又校验了一下、这个 process 通用命名真的搞
                             break;
                         case UPDATE:
                             TransportUpdateAction.resolveAndValidateRouting(metaData, concreteIndex.getName(),
@@ -415,10 +415,10 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                 if (request == null) {
                     continue;
                 }
-                String concreteIndex = concreteIndices.getConcreteIndex(request.index()).getName();
+                String concreteIndex = concreteIndices.getConcreteIndex(request.index()).getName(); // 获取 index
                 ShardId shardId = clusterService.operationRouting().indexShards(clusterState, concreteIndex, request.id(),
-                    request.routing()).shardId();
-                List<BulkItemRequest> shardRequests = requestsByShard.computeIfAbsent(shardId, shard -> new ArrayList<>());
+                    request.routing()).shardId(); //
+                List<BulkItemRequest> shardRequests = requestsByShard.computeIfAbsent(shardId, shard -> new ArrayList<>()); // 按照 shard 切分请求 ?
                 shardRequests.add(new BulkItemRequest(i, request));
             }
 
@@ -428,7 +428,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                 return;
             }
 
-            final AtomicInteger counter = new AtomicInteger(requestsByShard.size());
+            final AtomicInteger counter = new AtomicInteger(requestsByShard.size()); // 方法内部使用 原子性变量 ?
             String nodeId = clusterService.localNode().getId();
             for (Map.Entry<ShardId, List<BulkItemRequest>> entry : requestsByShard.entrySet()) {
                 final ShardId shardId = entry.getKey();
@@ -437,10 +437,10 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                         requests.toArray(new BulkItemRequest[requests.size()]));
                 bulkShardRequest.waitForActiveShards(bulkRequest.waitForActiveShards());
                 bulkShardRequest.timeout(bulkRequest.timeout());
-                if (task != null) {
+                if (task != null) { // task 是一个 ReplicationTask
                     bulkShardRequest.setParentTask(nodeId, task.getId());
                 }
-                shardBulkAction.execute(bulkShardRequest, new ActionListener<BulkShardResponse>() {
+                shardBulkAction.execute(bulkShardRequest, new ActionListener<BulkShardResponse>() { // 执行真正的任务了.
                     @Override
                     public void onResponse(BulkShardResponse bulkShardResponse) {
                         for (BulkItemResponse bulkItemResponse : bulkShardResponse.getResponses()) {
@@ -553,7 +553,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
 
     void executeBulk(Task task, final BulkRequest bulkRequest, final long startTimeNanos, final ActionListener<BulkResponse> listener,
             final AtomicArray<BulkItemResponse> responses, Map<String, IndexNotFoundException> indicesThatCannotBeCreated) {
-        new BulkOperation(task, bulkRequest, listener, responses, startTimeNanos, indicesThatCannotBeCreated).run();
+        new BulkOperation(task, bulkRequest, listener, responses, startTimeNanos, indicesThatCannotBeCreated).run();// 有意思、直接 run、不是 start、 也就是当前的 thread 执行这个 Runnable .
     }
 
     private static class ConcreteIndices  {

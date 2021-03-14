@@ -650,7 +650,7 @@ public abstract class TransportReplicationAction<
         }
 
         @Override
-        protected void doRun() {
+        protected void doRun() {// Replica Action
             setPhase(task, "routing");
             final ClusterState state = observer.setAndGetObservedState();
             final String concreteIndex = concreteIndex(state, request);
@@ -664,7 +664,7 @@ public abstract class TransportReplicationAction<
                 }
             } else {
                 // request does not have a shardId yet, we need to pass the concrete index to resolve shardId
-                final IndexMetaData indexMetaData = state.metaData().index(concreteIndex);
+                final IndexMetaData indexMetaData = state.metaData().index(concreteIndex); // 获取 shardId
                 if (indexMetaData == null) {
                     retry(new IndexNotFoundException(concreteIndex));
                     return;
@@ -674,19 +674,19 @@ public abstract class TransportReplicationAction<
                 }
 
                 // resolve all derived request fields, so we can route and apply it
-                resolveRequest(indexMetaData, request);
+                resolveRequest(indexMetaData, request); // 这里处理等待 waitActiveShard
                 assert request.waitForActiveShards() != ActiveShardCount.DEFAULT :
                     "request waitForActiveShards must be set in resolveRequest";
 
-                final ShardRouting primary = primary(state);
+                final ShardRouting primary = primary(state); // 获取 主节点
                 if (retryIfUnavailable(state, primary)) {
                     return;
                 }
                 final DiscoveryNode node = state.nodes().get(primary.currentNodeId());
-                if (primary.currentNodeId().equals(state.nodes().getLocalNodeId())) {
-                    performLocalAction(state, primary, node, indexMetaData);
+                if (primary.currentNodeId().equals(state.nodes().getLocalNodeId())) { // 判断 当前的 node 就是 Primary 的Node
+                    performLocalAction(state, primary, node, indexMetaData); // 本地执行 Action
                 } else {
-                    performRemoteAction(state, primary, node);
+                    performRemoteAction(state, primary, node); // 不是就远程执行 Action, 其实和 Local 调用都是相同的函数、操了 ...
                 }
             }
         }

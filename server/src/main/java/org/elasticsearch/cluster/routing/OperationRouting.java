@@ -68,7 +68,7 @@ public class OperationRouting {
     }
 
     public ShardIterator indexShards(ClusterState clusterState, String index, String id, @Nullable String routing) {
-        return shards(clusterState, index, id, routing).shardsIt();
+        return shards(clusterState, index, id, routing).shardsIt(); // 获取到 shard 对象、可能是多个?
     }
 
     public ShardIterator getShards(ClusterState clusterState, String index, String id, @Nullable String routing,
@@ -242,7 +242,7 @@ public class OperationRouting {
 
     protected IndexShardRoutingTable shards(ClusterState clusterState, String index, String id, String routing) {
         int shardId = generateShardId(indexMetaData(clusterState, index), id, routing);
-        return clusterState.getRoutingTable().shardRoutingTable(index, shardId);
+        return clusterState.getRoutingTable().shardRoutingTable(index, shardId); // 根据 shardId 去元信息中获取
     }
 
     public ShardId shardId(ClusterState clusterState, String index, String id, @Nullable String routing) {
@@ -271,8 +271,8 @@ public class OperationRouting {
         return calculateScaledShardId(indexMetaData, effectiveRouting, partitionOffset);
     }
 
-    private static int calculateScaledShardId(IndexMetaData indexMetaData, String effectiveRouting, int partitionOffset) {
-        final int hash = Murmur3HashFunction.hash(effectiveRouting) + partitionOffset;
+    private static int calculateScaledShardId(IndexMetaData indexMetaData, String effectiveRouting, int partitionOffset) { // 计算 shard 的精髓了
+        final int hash = Murmur3HashFunction.hash(effectiveRouting) + partitionOffset; // 计算 hash + partitionOffset .
 
         // we don't use IMD#getNumberOfShards since the index might have been shrunk such that we need to use the size
         // of original index to hash documents
