@@ -1,0 +1,114 @@
+[role="xpack"]
+[testenv="basic"]
+[[rollup-put-job]]
+=== Create {rollup-jobs} API
+[subs="attributes"]
+++++
+<titleabbrev>Create {rollup-jobs}</titleabbrev>
+++++
+
+Creates a {rollup-job}.
+
+experimental[]
+
+[[rollup-put-job-api-request]]
+==== {api-request-title}
+
+`PUT _rollup/job/<job_id>`
+
+[[rollup-put-job-api-prereqs]]
+==== {api-prereq-title}
+
+* If the {es} {security-features} are enabled, you must have `manage` or
+`manage_rollup` cluster privileges to use this API. For more information, see
+{stack-ov}/security-privileges.html[Security privileges].
+
+[[rollup-put-job-api-desc]]
+==== {api-description-title}
+
+Jobs are created in a `STOPPED` state. You can start them with the
+<<rollup-start-job,start {rollup-jobs} API>>.
+
+[[rollup-put-job-api-path-params]]
+==== {api-path-parms-title}
+
+`job_id`::
+  (Required, string) Identifier for the {rollup-job}.
+
+[[rollup-put-job-api-request-body]]
+==== {api-request-body-title}
+
+`cron`::
+  (Required, string) A cron string which defines when the {rollup-job} should be executed.
+
+`groups`::
+  (Required, object) Defines the grouping fields that are defined for this
+  {rollup-job}. See <<rollup-job-config,{rollup-job} config>>.
+
+`index_pattern`::
+  (Required, string) The index or index pattern to roll up. Supports
+  wildcard-style patterns (`logstash-*`).
+
+`metrics`::
+  (Optional, object) Defines the metrics to collect for each grouping tuple. See
+  <<rollup-job-config,{rollup-job} config>>.
+
+`page_size`::
+  (Required, integer) The number of bucket results that are processed on each
+  iteration of the rollup indexer. A larger value tends to execute faster, but
+  requires more memory during processing.
+
+`rollup_index`::
+  (Required, string) The index that contains the rollup results. The index can
+  be shared with other {rollup-jobs}.
+
+For more details about the job configuration, see <<rollup-job-config>>.
+
+[[rollup-put-job-api-example]]
+==== {api-example-title}
+
+The following example creates a {rollup-job} named "sensor", targeting the
+"sensor-*" index pattern:
+
+[source,js]
+--------------------------------------------------
+PUT _rollup/job/sensor
+{
+    "index_pattern": "sensor-*",
+    "rollup_index": "sensor_rollup",
+    "cron": "*/30 * * * * ?",
+    "page_size" :1000,
+    "groups" : {
+      "date_histogram": {
+        "field": "timestamp",
+        "fixed_interval": "1h",
+        "delay": "7d"
+      },
+      "terms": {
+        "fields": ["node"]
+      }
+    },
+    "metrics": [
+        {
+            "field": "temperature",
+            "metrics": ["min", "max", "sum"]
+        },
+        {
+            "field": "voltage",
+            "metrics": ["avg"]
+        }
+    ]
+}
+--------------------------------------------------
+// CONSOLE
+// TEST[setup:sensor_index]
+
+When the job is created, you receive the following results:
+
+[source,js]
+----
+{
+  "acknowledged": true
+}
+----
+// TESTRESPONSE

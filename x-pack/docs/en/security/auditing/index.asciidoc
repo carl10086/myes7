@@ -1,0 +1,7 @@
+include::overview.asciidoc[]
+
+include::event-types.asciidoc[]
+
+include::output-logfile.asciidoc[]
+
+include::auditing-search-queries.asciidoc[]
