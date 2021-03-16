@@ -289,26 +289,26 @@ public abstract class TransportReplicationAction<
 
         @Override
         protected void doRun() throws Exception {
-            final ShardId shardId = primaryRequest.getRequest().shardId();
-            final IndexShard indexShard = getIndexShard(shardId);
-            final ShardRouting shardRouting = indexShard.routingEntry();
+            final ShardId shardId = primaryRequest.getRequest().shardId(); // 获取对应的分片 Id , blogs[0]
+            final IndexShard indexShard = getIndexShard(shardId); // 获取 IndexShard 对象, 有一个 Map 缓存
+            final ShardRouting shardRouting = indexShard.routingEntry(); // 对应 shard 的分片
             // we may end up here if the cluster state used to route the primary is so stale that the underlying
             // index shard was replaced with a replica. For example - in a two node cluster, if the primary fails
             // the replica will take over and a replica will be assigned to the first node.
-            if (shardRouting.primary() == false) {
+            if (shardRouting.primary() == false) { // 当前的 shard 在索引的过程中变成不是 primary 的异常、直接让重试
                 throw new ReplicationOperation.RetryOnPrimaryException(shardId, "actual shard is not a primary " + shardRouting);
             }
-            final String actualAllocationId = shardRouting.allocationId().getId();
+            final String actualAllocationId = shardRouting.allocationId().getId(); // 获取实际的 allocationId. 唯一最终的
             if (actualAllocationId.equals(primaryRequest.getTargetAllocationID()) == false) {
                 throw new ShardNotFoundException(shardId, "expected allocation id [{}] but found [{}]",
                     primaryRequest.getTargetAllocationID(), actualAllocationId);
             }
-            final long actualTerm = indexShard.getPendingPrimaryTerm();
+            final long actualTerm = indexShard.getPendingPrimaryTerm(); // Term 校验
             if (actualTerm != primaryRequest.getPrimaryTerm()) {
                 throw new ShardNotFoundException(shardId, "expected allocation id [{}] with term [{}] but found [{}]",
                     primaryRequest.getTargetAllocationID(), primaryRequest.getPrimaryTerm(), actualTerm);
             }
-
+            // Lambda 表达式执行 debug 烦人、实际上执行的方法是  runWithPrimaryShardReference .
             acquirePrimaryOperationPermit(
                     indexShard,
                     primaryRequest.getRequest(),
@@ -325,8 +325,8 @@ public abstract class TransportReplicationAction<
 
         void runWithPrimaryShardReference(final PrimaryShardReference primaryShardReference) {
             try {
-                final ClusterState clusterState = clusterService.state();
-                final IndexMetaData indexMetaData = clusterState.metaData().getIndexSafe(primaryShardReference.routingEntry().index());
+                final ClusterState clusterState = clusterService.state(); // 1. 获取集群状态
+                final IndexMetaData indexMetaData = clusterState.metaData().getIndexSafe(primaryShardReference.routingEntry().index()); // 2. 获取索引元信息
 
                 final ClusterBlockException blockException = blockExceptions(clusterState, indexMetaData.getIndex().getName());
                 if (blockException != null) {
@@ -334,7 +334,7 @@ public abstract class TransportReplicationAction<
                     throw blockException;
                 }
 
-                if (primaryShardReference.isRelocated()) {
+                if (primaryShardReference.isRelocated()) { // 确保不是重新分配 .
                     primaryShardReference.close(); // release shard operation lock as soon as possible
                     setPhase(replicationTask, "primary_delegation");
                     // delegate primary phase to relocation target
@@ -395,7 +395,7 @@ public abstract class TransportReplicationAction<
 
                     new ReplicationOperation<>(primaryRequest.getRequest(), primaryShardReference,
                         ActionListener.wrap(result -> result.respond(globalCheckpointSyncingListener), referenceClosingListener::onFailure),
-                        newReplicasProxy(), logger, actionName, primaryRequest.getPrimaryTerm()).execute();
+                        newReplicasProxy(), logger, actionName, primaryRequest.getPrimaryTerm()).execute(); // execute is here
                 }
             } catch (Exception e) {
                 handleException(primaryShardReference, e);
