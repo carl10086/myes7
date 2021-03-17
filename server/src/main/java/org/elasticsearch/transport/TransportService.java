@@ -612,7 +612,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
         if (connection == null) {
             throw new IllegalStateException("can't send request to a null connection");
         }
-        DiscoveryNode node = connection.getNode();
+        DiscoveryNode node = connection.getNode(); // 获取要发送的节点
 
         Supplier<ThreadContext.StoredContext> storedContextSupplier = threadPool.getThreadContext().newRestorableContext(true);
         ContextRestoreResponseHandler<T> responseHandler = new ContextRestoreResponseHandler<>(storedContextSupplier, handler);
@@ -640,7 +640,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
                 assert options.timeout() != null;
                 timeoutHandler.scheduleTimeout(options.timeout());
             }
-            connection.sendRequest(requestId, action, request, options); // local node optimization happens upstream
+            connection.sendRequest(requestId, action, request, options); // local node optimization happens upstream , 本地的话有优化, 不会有 tcp 的实现、而且 线程池的切换
         } catch (final Exception e) {
             // usually happen either because we failed to connect to the node
             // or because we failed serializing the message
@@ -696,7 +696,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
                 //noinspection unchecked
                 reg.processMessageReceived(request, channel);
             } else {
-                threadPool.executor(executor).execute(new AbstractRunnable() {
+                threadPool.executor(executor).execute(new AbstractRunnable() { // 使用了线程池去 execute, 如果是 index 请求，那么这里发生了第一次的上下文切换
                     @Override
                     protected void doRun() throws Exception {
                         //noinspection unchecked

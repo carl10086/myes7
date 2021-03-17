@@ -96,7 +96,7 @@ public class ReplicationOperation<
     public void execute() throws Exception {
         final String activeShardCountFailure = checkActiveShardCount();
         final ShardRouting primaryRouting = primary.routingEntry();
-        final ShardId primaryId = primaryRouting.shardId();
+        final ShardId primaryId = primaryRouting.shardId(); // 获取 主分片 id
         if (activeShardCountFailure != null) {
             finishAsFailed(new UnavailableShardsException(primaryId,
                 "{} Timeout: [{}], request: [{}]", activeShardCountFailure, request.timeout(), request));
