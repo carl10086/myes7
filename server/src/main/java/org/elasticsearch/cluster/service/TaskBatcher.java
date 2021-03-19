@@ -82,7 +82,7 @@ public abstract class TaskBatcher {
         }
 
         if (timeout != null) {
-            threadExecutor.execute(firstTask, timeout, () -> onTimeoutInternal(tasks, timeout));
+            threadExecutor.execute(firstTask, timeout, () -> onTimeoutInternal(tasks, timeout)); // 批处理线程池
         } else {
             threadExecutor.execute(firstTask);
         }

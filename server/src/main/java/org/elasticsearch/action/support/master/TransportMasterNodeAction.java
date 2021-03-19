@@ -194,7 +194,7 @@ public abstract class TransportMasterNodeAction<Request extends MasterNodeReques
                                 delegatedListener.onFailure(t);
                             }
                         });
-                        threadPool.executor(executor).execute(new ActionRunnable<Response>(delegate) {
+                        threadPool.executor(executor).execute(new ActionRunnable<Response>(delegate) { // 这里使用了 threadPool ，不一定线程切换、其中包含了24个线程池 . 还是使用 same !
                             @Override
                             protected void doRun() throws Exception {
                                 masterOperation(task, request, clusterState, delegate);

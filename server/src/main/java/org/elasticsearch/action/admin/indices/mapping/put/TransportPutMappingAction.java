@@ -110,7 +110,7 @@ public class TransportPutMappingAction extends TransportMasterNodeAction<PutMapp
                     .indices(concreteIndices).type(request.type())
                     .source(request.source());
 
-            metaDataMappingService.putMapping(updateRequest, new ActionListener<ClusterStateUpdateResponse>() {
+            metaDataMappingService.putMapping(updateRequest, new ActionListener<ClusterStateUpdateResponse>() { // 修改 Mapping
 
                 @Override
                 public void onResponse(ClusterStateUpdateResponse response) {

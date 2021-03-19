@@ -157,9 +157,9 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             protected void doRun() throws Exception {
                 while (context.hasMoreOperationsToExecute()) {
                     if (executeBulkItemRequest(context, updateHelper, nowInMillisSupplier, mappingUpdater, waitForMappingUpdate,
-                        ActionListener.wrap(v -> executor.execute(this), this::onRejection)) == false) {
+                        ActionListener.wrap(v -> executor.execute(this), this::onRejection)) == false) { // 这里传入了 executor , 会发生一次 thread 切换
                         // We are waiting for a mapping update on another thread, that will invoke this action again once its done
-                        // so we just break out here.
+                        // so we just break out here. 这里会等待另一个线程的 Mapping Update 任务
                         return;
                     }
                     assert context.isInitial(); // either completed and moved to next or reset
@@ -243,8 +243,8 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
 
         assert context.getRequestToExecute() != null; // also checks that we're in TRANSLATED state
 
-        final IndexShard primary = context.getPrimary();
-        final long version = context.getRequestToExecute().version();
+        final IndexShard primary = context.getPrimary(); // 1. 获取 primary 分片
+        final long version = context.getRequestToExecute().version(); //  2. 获取上下文的版本号
         final boolean isDelete = context.getRequestToExecute().opType() == DocWriteRequest.OpType.DELETE;
         final Engine.Result result;
         if (isDelete) {
