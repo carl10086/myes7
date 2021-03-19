@@ -911,7 +911,7 @@ public class InternalEngine extends Engine {
                 if (index.origin().isFromTranslog() == false) {
                     final Translog.Location location;
                     if (indexResult.getResultType() == Result.Type.SUCCESS) {
-                        location = translog.add(new Translog.Index(index, indexResult));
+                        location = translog.add(new Translog.Index(index, indexResult)); // 这里触发写入 transLog 逻辑
                     } else if (indexResult.getSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) {
                         // if we have document failure, record it as a no-op in the translog and Lucene with the generated seq_no
                         final NoOp noOp = new NoOp(indexResult.getSeqNo(), index.primaryTerm(), index.origin(),

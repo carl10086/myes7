@@ -539,8 +539,8 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
             final int operationSize = (int) (end - Integer.BYTES - start);
             out.seek(start);
             out.writeInt(operationSize);
-            out.seek(end);
-            final ReleasablePagedBytesReference bytes = out.bytes();
+            out.seek(end); // 这里的 seek 都是纯碎的内存行为
+            final ReleasablePagedBytesReference bytes = out.bytes(); // 先临时写入一个 byte 数组中吗? 这个 out. 再把 out 写入 writer .
             try (ReleasableLock ignored = readLock.acquire()) {
                 ensureOpen();
                 if (operation.primaryTerm() > current.getPrimaryTerm()) {
@@ -550,7 +550,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
                     throw new IllegalArgumentException("Operation term is newer than the current term; "
                         + "current term[" + current.getPrimaryTerm() + "], operation term[" + operation + "]");
                 }
-                return current.add(bytes, operation.seqNo());
+                return current.add(bytes, operation.seqNo()); // 这里再调用 writer 去写入
             }
         } catch (final AlreadyClosedException | IOException ex) {
             closeOnTragicEvent(ex);

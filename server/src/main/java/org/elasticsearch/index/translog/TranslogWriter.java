@@ -80,7 +80,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
 
     private TranslogWriter(
         final ChannelFactory channelFactory,
-        final ShardId shardId,
+        final ShardId shardId, // 要传 shardId、 不同 shard 有自己的 TranlogWriter ?
         final Checkpoint initialCheckpoint,
         final FileChannel channel,
         final Path path,
@@ -117,7 +117,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
                                         final LongSupplier globalCheckpointSupplier, final LongSupplier minTranslogGenerationSupplier,
                                         final long primaryTerm, TragicExceptionHolder tragedy, LongConsumer persistedSequenceNumberConsumer)
         throws IOException {
-        final FileChannel channel = channelFactory.open(file);
+        final FileChannel channel = channelFactory.open(file); // 通过 io 工厂打开
         try {
             final TranslogHeader header = new TranslogHeader(translogUUID, primaryTerm);
             header.write(channel);
